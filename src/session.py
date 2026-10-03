@@ -3,7 +3,11 @@ Grouping observations into fitness session.
 """
 
 from src.observation import Observation
-from src.validation import validate_observation, is_good_signal_quality
+from src.validation import (
+    SIGNAL_QUALITY_THRESHOLD,
+    is_good_signal_quality,
+    validate_observation,
+)
 from src.calculations import calculate_average, calculate_min, calculate_max, calculate_hr_elevation
 
 class Session:
@@ -53,7 +57,9 @@ class Session:
         """
         return self.observations
 
-    def get_good_quality_observations(self, quality_threshold: float=0.7) -> list:
+    def get_good_quality_observations(
+        self, quality_threshold: float = SIGNAL_QUALITY_THRESHOLD
+    ) -> list:
         """
         Get all observations with good signal quality above the specified threshold.
 
@@ -65,7 +71,9 @@ class Session:
         """
         return [obs for obs in self.observations if is_good_signal_quality(obs.signal_quality, quality_threshold)]
 
-    def get_session_summary(self, quality_threshold: float = 0.7) -> dict:
+    def get_session_summary(
+        self, quality_threshold: float = SIGNAL_QUALITY_THRESHOLD
+    ) -> dict:
         """
         Get a summary of the session, including the number of good quality observations.
 

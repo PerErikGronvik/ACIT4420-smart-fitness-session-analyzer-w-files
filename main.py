@@ -4,6 +4,7 @@ from pathlib import Path
 
 from src import csv_validation as cv
 from src import perdas as pe
+from src.validation import SIGNAL_QUALITY_THRESHOLD, is_good_signal_quality
 
 
 DATA_DIRECTORY = Path(__file__).resolve().parent / "data"
@@ -108,13 +109,32 @@ def main() -> None:
             d_sessions_by_id[s_session_id] = {
                 "participant": d_profiles_by_id[ld_session_row["participant_id"]],
                 "observations": [],
+                "usable_observations": [],
+                "low_quality_observations": [],
             }
-        d_sessions_by_id[s_session_id]["observations"].append(ld_session_row)
+        d_session = d_sessions_by_id[s_session_id]
+        d_session["observations"].append(ld_session_row)
+        s_quality_bucket = (
+            "usable_observations"
+            if is_good_signal_quality(
+                ld_session_row["signal_quality"], SIGNAL_QUALITY_THRESHOLD
+            )
+            else "low_quality_observations"
+        )
+        d_session[s_quality_bucket].append(ld_session_row)
+
+    i_low_quality_observations = sum(
+        len(d_session["low_quality_observations"])
+        for d_session in d_sessions_by_id.values()
+    )
 
     print(
         f"Read {len(ld_profiles_rows)} participant profiles, "
         f"accepted {len(ld_accepted_valid_session_rows)} valid observations "
-        f"across {len(d_sessions_by_id)} sessions, and read "
+        f"across {len(d_sessions_by_id)} sessions; "
+        f"{i_low_quality_observations} observations below the "
+        f"{SIGNAL_QUALITY_THRESHOLD} signal-quality threshold are excluded "
+        "from analysis. Read "
         f"{len(ld_invalid_sessions_rows)} intentionally invalid session rows "
         f"({len(ld_validation_errors)} validation findings)."
     )

@@ -2,6 +2,9 @@
 Validation functions
 """
 
+SIGNAL_QUALITY_THRESHOLD = 0.7
+
+
 def validate_observation(observation_dict: dict) -> tuple[bool, str]:
     """
     Validate an observation dictionary.
@@ -46,7 +49,10 @@ def validate_observation(observation_dict: dict) -> tuple[bool, str]:
 
     return True, ""
 
-def is_good_signal_quality(signal_quality: float, threshold: float = 0.5) -> bool:
+def is_good_signal_quality(
+    signal_quality: float,
+    threshold: float = SIGNAL_QUALITY_THRESHOLD,
+) -> bool:
     """
     Check if the signal quality in the observation is good.
 
