@@ -1,6 +1,3 @@
-
-
-
 """Load the official Assignment II fitness CSV files."""
 
 from pathlib import Path
@@ -36,10 +33,18 @@ def main() -> None:
         ld_session_row["activity_level"] = float(ld_session_row["activity_level"])
         ld_session_row["signal_quality"] = float(ld_session_row["signal_quality"])
 
+    d_observations_by_session_id = {}
+    for ld_session_row in ld_valid_sessions_rows:
+        s_session_id = ld_session_row["session_id"]
+        d_observations_by_session_id.setdefault(s_session_id, []).append(
+            ld_session_row
+        )
+
     print(
         "Read CSV data rows: "
         f"{len(ld_profiles_rows)} participant profiles, "
         f"{len(ld_valid_sessions_rows)} valid session rows, "
+        f"{len(d_observations_by_session_id)} valid sessions, "
         f"{len(ld_invalid_sessions_rows)} intentionally invalid session rows."
     )
 
