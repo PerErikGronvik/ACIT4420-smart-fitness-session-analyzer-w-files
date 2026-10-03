@@ -64,6 +64,34 @@ def main() -> None:
         f"{len(ld_invalid_sessions_rows)} intentionally invalid session rows."
     )
 
+    print("\nDEBUG: Participant profiles")
+    for s_participant_id, d_profile in d_profiles_by_id.items():
+        print(
+            f"{s_participant_id} - {d_profile['name']}: "
+            f"baseline heart rate={d_profile['baseline_heart_rate']}, "
+            f"skin response={d_profile['baseline_skin_response']}, "
+            f"temperature={d_profile['baseline_temperature']}"
+        )
+
+    print("\nDEBUG: Valid sessions and observations")
+    for s_session_id, d_session in d_sessions_by_id.items():
+        d_profile = d_session["participant"]
+        print(
+            f"{s_session_id} -> {d_profile['participant_id']} "
+            f"({d_profile['name']}), "
+            f"{len(d_session['observations'])} observations"
+        )
+        for d_observation in d_session["observations"]:
+            print(
+                f"  timestamp={d_observation['timestamp']}, "
+                f"participant_id={d_observation['participant_id']}, "
+                f"heart_rate={d_observation['heart_rate']}, "
+                f"skin_response={d_observation['skin_response']}, "
+                f"temperature={d_observation['temperature']}, "
+                f"activity_level={d_observation['activity_level']}, "
+                f"signal_quality={d_observation['signal_quality']}"
+            )
+
 
 if __name__ == "__main__":
     main()
