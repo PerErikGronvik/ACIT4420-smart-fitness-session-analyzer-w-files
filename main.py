@@ -8,6 +8,24 @@ import perdas as pe
 
 DATA_DIRECTORY = Path(__file__).resolve().parent / "data"
 
+PROFILE_FIELDS = [
+    "participant_id",
+    "name",
+    "baseline_heart_rate",
+    "baseline_skin_response",
+    "baseline_temperature",
+]
+SESSION_FIELDS = [
+    "session_id",
+    "participant_id",
+    "timestamp",
+    "heart_rate",
+    "skin_response",
+    "temperature",
+    "activity_level",
+    "signal_quality",
+]
+
 # Validation helpers for participant and session IDs.
 def is_valid_participant_id(s_identifier: object) -> bool:
     """Return whether a participant ID is P followed by exactly three digits."""
@@ -25,6 +43,53 @@ def is_valid_session_id(s_identifier: object) -> bool:
     )
 
 
+def validate_csv_rows(
+    s_source_name: str,
+    ld_csv_rows: list[dict[str | None, str | list[str] | None]],
+    ls_expected_fields: list[str],
+) -> list[str]:
+    """Report missing required fields and row lengths that do not match the schema."""
+    ld_validation_errors = []
+    i_expected_length = len(ls_expected_fields)
+
+    for i_row_number, ld_csv_row in enumerate(ld_csv_rows, start=2):
+        for s_field in ls_expected_fields:
+            s_value = ld_csv_row.get(s_field)
+            if s_value is None or (isinstance(s_value, str) and not s_value.strip()):
+                ld_validation_errors.append(
+                    f"{s_source_name} row {i_row_number}: missing required field "
+                    f"{s_field}."
+                )
+
+        i_actual_length = sum(
+            s_field in ld_csv_row and ld_csv_row[s_field] is not None
+            for s_field in ld_csv_row
+            if s_field is not None
+        )
+        v_extra_fields = ld_csv_row.get(None)
+        if isinstance(v_extra_fields, list):
+            i_actual_length += len(v_extra_fields)
+
+        if i_actual_length != i_expected_length:
+            ld_validation_errors.append(
+                f"{s_source_name} row {i_row_number}: unexpected row length; "
+                f"found {i_actual_length} fields, expected {i_expected_length}."
+            )
+
+        ls_unexpected_fields = [
+            s_field
+            for s_field in ld_csv_row
+            if s_field is not None and s_field not in ls_expected_fields
+        ]
+        if ls_unexpected_fields:
+            ld_validation_errors.append(
+                f"{s_source_name} row {i_row_number}: unexpected fields "
+                f"{ls_unexpected_fields}."
+            )
+
+    return ld_validation_errors
+
+
 def main() -> None:
     """Read the three official inputs and report their row counts."""
     ld_identifier_errors = []
@@ -33,6 +98,26 @@ def main() -> None:
     ld_profiles_rows = pe.read_csv(DATA_DIRECTORY / "participants.csv")
     ld_valid_sessions_rows = pe.read_csv(DATA_DIRECTORY / "fitness_sessions.csv")
     ld_invalid_sessions_rows = pe.read_csv(DATA_DIRECTORY / "fitness_sessions_invalid.csv")
+
+    ld_structure_errors = []
+    ld_structure_errors.extend(
+        validate_csv_rows("participants.csv", ld_profiles_rows, PROFILE_FIELDS)
+    )
+    ld_structure_errors.extend(
+        validate_csv_rows("fitness_sessions.csv", ld_valid_sessions_rows, SESSION_FIELDS)
+    )
+    ld_structure_errors.extend(
+        validate_csv_rows(
+            "fitness_sessions_invalid.csv", ld_invalid_sessions_rows, SESSION_FIELDS
+        )
+    )
+
+    print("\nDEBUG: CSV structure validation")
+    if ld_structure_errors:
+        for s_structure_error in ld_structure_errors:
+            print(f"  {s_structure_error}")
+    else:
+        print("  All rows have the required fields and expected number of columns.")
 
     # Validate participant IDs in the profiles CSV.
     for i_row_number, ld_profile_row in enumerate(ld_profiles_rows, start=2):
@@ -90,6 +175,13 @@ def main() -> None:
         ld_session_row["signal_quality"] = float(ld_session_row["signal_quality"])
 
     # Convert invalid session values to appropriate types.
+#    for ld_session_row in ld_invalid_sessions_rows:
+#        ld_session_row["timestamp"] = int(ld_session_row["timestamp"])
+#        ld_session_row["heart_rate"] = int(ld_session_row["heart_rate"])
+#        ld_session_row["skin_response"] = float(ld_session_row["skin_response"])
+#        ld_session_row["temperature"] = float(ld_session_row["temperature"])
+#        ld_session_row["activity_level"] = float(ld_session_row["activity_level"])
+#        ld_session_row["signal_quality"] = float(ld_session_row["signal_quality"])
 
     # Organize participant profiles by participant ID.
     d_profiles_by_id = {
