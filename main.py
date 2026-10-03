@@ -1,6 +1,8 @@
 """Load the official Assignment II fitness CSV files."""
 
+import math
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 import perdas as pe
@@ -25,6 +27,23 @@ SESSION_FIELDS = [
     "activity_level",
     "signal_quality",
 ]
+PROFILE_NUMERIC_RULES: dict[
+    str, tuple[Callable[[str], int | float], float | None, float | None]
+] = {
+    "baseline_heart_rate": (int, 30, 230),
+    "baseline_skin_response": (float, 0, None),
+    "baseline_temperature": (float, 25, 42),
+}
+SESSION_NUMERIC_RULES: dict[
+    str, tuple[Callable[[str], int | float], float | None, float | None]
+] = {
+    "timestamp": (int, 0, None),
+    "heart_rate": (int, 30, 230),
+    "skin_response": (float, 0, None),
+    "temperature": (float, 25, 42),
+    "activity_level": (float, 0, 1),
+    "signal_quality": (float, 0, 1),
+}
 
 # Validation helpers for participant and session IDs.
 def is_valid_participant_id(s_identifier: object) -> bool:
@@ -90,6 +109,84 @@ def validate_csv_rows(
     return ld_validation_errors
 
 
+def has_valid_csv_shape(
+    ld_csv_row: dict[str | None, str | list[str] | None],
+    ls_expected_fields: list[str],
+) -> bool:
+    """Return whether a row has every nonblank expected field and no extra columns."""
+    return all(
+        isinstance(ld_csv_row.get(s_field), str)
+        and bool(ld_csv_row[s_field].strip())
+        for s_field in ls_expected_fields
+    ) and all(
+        s_field is not None and s_field in ls_expected_fields
+        for s_field in ld_csv_row
+    )
+
+
+def convert_and_validate_numeric_fields(
+    s_source_name: str,
+    i_row_number: int,
+    ld_csv_row: dict[str | None, str | list[str] | None],
+    d_numeric_rules: dict[
+        str, tuple[Callable[[str], int | float], float | None, float | None]
+    ],
+    ld_numeric_errors: list[str],
+) -> bool:
+    """Convert numeric fields and report conversion or range failures for a row."""
+    d_converted_values: dict[str, int | float] = {}
+    b_row_is_valid = True
+
+    for s_field, (f_converter, n_minimum, n_maximum) in d_numeric_rules.items():
+        s_raw_value = ld_csv_row.get(s_field)
+        if not isinstance(s_raw_value, str) or not s_raw_value.strip():
+            b_row_is_valid = False
+            continue
+
+        try:
+            n_value = f_converter(s_raw_value)
+        except (TypeError, ValueError, OverflowError):
+            s_expected_type = "integer" if f_converter is int else "number"
+            ld_numeric_errors.append(
+                f"{s_source_name} row {i_row_number}: field {s_field} "
+                f"cannot be converted to an {s_expected_type}: {s_raw_value!r}."
+            )
+            b_row_is_valid = False
+            continue
+
+        if isinstance(n_value, float) and not math.isfinite(n_value):
+            ld_numeric_errors.append(
+                f"{s_source_name} row {i_row_number}: field {s_field} "
+                f"must be a finite number, got {s_raw_value!r}."
+            )
+            b_row_is_valid = False
+            continue
+
+        if (
+            (n_minimum is not None and n_value < n_minimum)
+            or (n_maximum is not None and n_value > n_maximum)
+        ):
+            if n_minimum is None:
+                s_allowed_range = f"at most {n_maximum}"
+            elif n_maximum is None:
+                s_allowed_range = f"at least {n_minimum}"
+            else:
+                s_allowed_range = f"between {n_minimum} and {n_maximum}"
+            ld_numeric_errors.append(
+                f"{s_source_name} row {i_row_number}: field {s_field} "
+                f"value {n_value} is outside the allowed range "
+                f"({s_allowed_range})."
+            )
+            b_row_is_valid = False
+            continue
+
+        d_converted_values[s_field] = n_value
+
+    if b_row_is_valid:
+        ld_csv_row.update(d_converted_values)
+    return b_row_is_valid
+
+
 def main() -> None:
     """Read the three official inputs and report their row counts."""
     ld_identifier_errors = []
@@ -153,50 +250,65 @@ def main() -> None:
     else:
         print("  All participant and session IDs match their required formats.")
     
-    # Convert baseline values to appropriate types.
-    for ld_profile_row in ld_profiles_rows:
-        ld_profile_row["baseline_heart_rate"] = int(
-            ld_profile_row["baseline_heart_rate"]
+    ld_numeric_errors = []
+    ld_accepted_profile_rows = []
+    for i_row_number, ld_profile_row in enumerate(ld_profiles_rows, start=2):
+        b_shape_is_valid = has_valid_csv_shape(ld_profile_row, PROFILE_FIELDS)
+        b_id_is_valid = is_valid_participant_id(
+            ld_profile_row.get("participant_id")
         )
-        ld_profile_row["baseline_skin_response"] = float(
-            ld_profile_row["baseline_skin_response"]
+        b_values_are_valid = convert_and_validate_numeric_fields(
+            "participants.csv",
+            i_row_number,
+            ld_profile_row,
+            PROFILE_NUMERIC_RULES,
+            ld_numeric_errors,
         )
-        ld_profile_row["baseline_temperature"] = float(
-            ld_profile_row["baseline_temperature"]
-        )
+        if b_shape_is_valid and b_id_is_valid and b_values_are_valid:
+            ld_accepted_profile_rows.append(ld_profile_row)
 
-    # Convert valid session values to appropriate types.
-    for ld_session_row in ld_valid_sessions_rows:
-        ld_session_row["timestamp"] = int(ld_session_row["timestamp"])
-        ld_session_row["heart_rate"] = int(ld_session_row["heart_rate"])
-        ld_session_row["skin_response"] = float(ld_session_row["skin_response"])
-        ld_session_row["temperature"] = float(ld_session_row["temperature"])
-        ld_session_row["activity_level"] = float(ld_session_row["activity_level"])
-        ld_session_row["signal_quality"] = float(ld_session_row["signal_quality"])
+    ld_accepted_valid_session_rows = []
+    for s_source_name, ld_session_rows in (
+        ("fitness_sessions.csv", ld_valid_sessions_rows),
+        ("fitness_sessions_invalid.csv", ld_invalid_sessions_rows),
+    ):
+        for i_row_number, ld_session_row in enumerate(ld_session_rows, start=2):
+            b_shape_is_valid = has_valid_csv_shape(ld_session_row, SESSION_FIELDS)
+            b_ids_are_valid = (
+                is_valid_session_id(ld_session_row.get("session_id"))
+                and is_valid_participant_id(ld_session_row.get("participant_id"))
+            )
+            b_values_are_valid = convert_and_validate_numeric_fields(
+                s_source_name,
+                i_row_number,
+                ld_session_row,
+                SESSION_NUMERIC_RULES,
+                ld_numeric_errors,
+            )
+            if (
+                s_source_name == "fitness_sessions.csv"
+                and b_shape_is_valid
+                and b_ids_are_valid
+                and b_values_are_valid
+            ):
+                ld_accepted_valid_session_rows.append(ld_session_row)
 
-    # Convert invalid session values to appropriate types.
-#    for ld_session_row in ld_invalid_sessions_rows:
-#        ld_session_row["timestamp"] = int(ld_session_row["timestamp"])
-#        ld_session_row["heart_rate"] = int(ld_session_row["heart_rate"])
-#        ld_session_row["skin_response"] = float(ld_session_row["skin_response"])
-#        ld_session_row["temperature"] = float(ld_session_row["temperature"])
-#        ld_session_row["activity_level"] = float(ld_session_row["activity_level"])
-#        ld_session_row["signal_quality"] = float(ld_session_row["signal_quality"])
+    print("\nDEBUG: Numeric conversion and range validation")
+    if ld_numeric_errors:
+        for s_numeric_error in ld_numeric_errors:
+            print(f"  {s_numeric_error}")
+    else:
+        print("  All numeric fields converted and passed their allowed ranges.")
 
     # Organize participant profiles by participant ID.
     d_profiles_by_id = {
         ld_profile_row["participant_id"]: ld_profile_row
-        for ld_profile_row in ld_profiles_rows
-        if is_valid_participant_id(ld_profile_row["participant_id"])
+        for ld_profile_row in ld_accepted_profile_rows
     }
     # Organize valid sessions by session ID.
     d_sessions_by_id = {}
-    for ld_session_row in ld_valid_sessions_rows:
+    for ld_session_row in ld_accepted_valid_session_rows:
         s_session_id = ld_session_row["session_id"]
-        if not is_valid_session_id(s_session_id):
-            continue
-        if not is_valid_participant_id(ld_session_row["participant_id"]):
-            continue
         if s_session_id not in d_sessions_by_id:
             d_sessions_by_id[s_session_id] = {
                 "participant": d_profiles_by_id[ld_session_row["participant_id"]],
