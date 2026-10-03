@@ -1,0 +1,3 @@
+# Smart Fitness Session Analyzer - Requirements
+# This project uses only the Python standard library.
+# No external dependencies required.
