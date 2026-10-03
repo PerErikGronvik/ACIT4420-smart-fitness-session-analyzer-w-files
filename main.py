@@ -53,6 +53,12 @@ def main() -> None:
         if b_shape_is_valid and b_id_is_valid and b_values_are_valid:
             ld_accepted_profile_rows.append(ld_profile_row)
 
+    d_profiles_by_id = {
+        ld_profile_row["participant_id"]: ld_profile_row
+        for ld_profile_row in ld_accepted_profile_rows
+    }
+    ds_known_participant_ids = set(d_profiles_by_id)
+
     ld_accepted_valid_session_rows = []
     for s_source_name, ld_session_rows in (
         ("fitness_sessions.csv", ld_valid_sessions_rows),
@@ -60,6 +66,11 @@ def main() -> None:
     ):
         ld_validation_errors.extend(
             cv.validate_session_ids(s_source_name, ld_session_rows)
+        )
+        ld_validation_errors.extend(
+            cv.validate_session_participants(
+                s_source_name, ld_session_rows, ds_known_participant_ids
+            )
         )
         for i_row_number, ld_session_row in enumerate(ld_session_rows, start=2):
             b_shape_is_valid = cv.has_valid_csv_shape(
@@ -70,6 +81,9 @@ def main() -> None:
                 and cv.is_valid_participant_id(
                     ld_session_row.get("participant_id")
                 )
+            )
+            b_participant_is_known = (
+                ld_session_row.get("participant_id") in ds_known_participant_ids
             )
             b_values_are_valid = cv.convert_and_validate_numeric_fields(
                 s_source_name,
@@ -82,14 +96,11 @@ def main() -> None:
                 s_source_name == "fitness_sessions.csv"
                 and b_shape_is_valid
                 and b_ids_are_valid
+                and b_participant_is_known
                 and b_values_are_valid
             ):
                 ld_accepted_valid_session_rows.append(ld_session_row)
 
-    d_profiles_by_id = {
-        ld_profile_row["participant_id"]: ld_profile_row
-        for ld_profile_row in ld_accepted_profile_rows
-    }
     d_sessions_by_id = {}
     for ld_session_row in ld_accepted_valid_session_rows:
         s_session_id = ld_session_row["session_id"]

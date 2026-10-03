@@ -95,6 +95,27 @@ def validate_session_ids(
     return ld_validation_errors
 
 
+def validate_session_participants(
+    s_source_name: str,
+    ld_session_rows: list[dict[str | None, str | list[str] | None]],
+    ds_known_participant_ids: set[str],
+) -> list[str]:
+    """Return contextual errors for session rows referencing unknown participants."""
+    ld_validation_errors = []
+    for i_row_number, ld_session_row in enumerate(ld_session_rows, start=2):
+        s_participant_id = ld_session_row.get("participant_id")
+        if (
+            is_valid_participant_id(s_participant_id)
+            and s_participant_id not in ds_known_participant_ids
+        ):
+            ld_validation_errors.append(
+                f"{s_source_name} row {i_row_number}: participant_id "
+                f"{s_participant_id!r} does not match any participant in "
+                "participants.csv."
+            )
+    return ld_validation_errors
+
+
 def validate_csv_rows(
     s_source_name: str,
     ld_csv_rows: list[dict[str | None, str | list[str] | None]],
