@@ -20,25 +20,4 @@ fitness_sessions.csv and fitness_sessions_invalid.csv
 - activity_level: normalized value from 0 to 1
 - signal_quality: normalized value from 0 to 1
 
-OPTION B PODCAST
-speakers.csv
-- speaker_id: S followed by three digits
-- name: simulated speaker name
-- baseline_pitch: usual pitch reference in hertz
-- baseline_energy: usual normalized energy reference
-- baseline_speech_rate: usual words-per-minute reference
-- baseline_pause_ratio: usual pause proportion
-
-recording_sessions.csv and recording_sessions_invalid.csv
-- recording_id: REC-YYYY-NNN
-- speaker_id: must exist in speakers.csv
-- timestamp: non-negative observation index
-- speech_present: True or False
-- pitch: pitch in hertz when speech is present
-- energy: normalized value from 0 to 1
-- speech_rate: words per minute
-- pause_ratio: normalized value from 0 to 1
-- background_noise: normalized value from 0 to 1
-- signal_quality: normalized value from 0 to 1
-
 Important: The invalid files intentionally contain malformed identifiers, missing fields, invalid types, unknown people and out-of-range values. Programs should report these records clearly and continue when safe.
