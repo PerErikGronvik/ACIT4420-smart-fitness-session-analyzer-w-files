@@ -79,7 +79,7 @@ def require_valid_participant_id(s_identifier: object) -> None:
     """Raise InvalidIdentifierError unless the value is a valid participant ID."""
     if not is_valid_participant_id(s_identifier):
         raise InvalidIdentifierError(
-            f"Expected P followed by three digits; got {s_identifier!r}."
+            f"InvalidIdentifierError:Expected P followed by three digits; got {s_identifier!r}."
         )
 
 
@@ -87,7 +87,7 @@ def require_valid_session_id(s_identifier: object) -> None:
     """Raise InvalidIdentifierError unless the value is a valid session ID."""
     if not is_valid_session_id(s_identifier):
         raise InvalidIdentifierError(
-            f"Expected FIT-YYYY-NNN; got {s_identifier!r}."
+            f"InvalidIdentifierError: Expected FIT-YYYY-NNN; got {s_identifier!r}."
         )
 
 
