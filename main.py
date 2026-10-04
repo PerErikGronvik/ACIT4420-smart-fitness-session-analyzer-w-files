@@ -4,6 +4,8 @@ from pathlib import Path
 
 from src import csv_validation as cv
 from src import perdas as pe
+from src.participant import Participant
+from src.session import Session
 from src.validation import (
     MINIMUM_USABLE_OBSERVATIONS,
     SIGNAL_QUALITY_THRESHOLD,
@@ -58,11 +60,17 @@ def main() -> None:
         if b_shape_is_valid and b_id_is_valid and b_values_are_valid:
             ld_accepted_profile_rows.append(ld_profile_row)
 
-    d_profiles_by_id = {
-        ld_profile_row["participant_id"]: ld_profile_row
+    d_participants_by_id = {
+        ld_profile_row["participant_id"]: Participant(
+            name=ld_profile_row["name"],
+            resting_heart_rate=ld_profile_row["baseline_heart_rate"],
+            participant_id=ld_profile_row["participant_id"],
+            baseline_skin_response=ld_profile_row["baseline_skin_response"],
+            baseline_temperature=ld_profile_row["baseline_temperature"],
+        )
         for ld_profile_row in ld_accepted_profile_rows
     }
-    ds_known_participant_ids = set(d_profiles_by_id)
+    ds_known_participant_ids = set(d_participants_by_id)
 
     ld_accepted_valid_session_rows = []
     for s_source_name, ld_session_rows in (
@@ -106,38 +114,41 @@ def main() -> None:
             ):
                 ld_accepted_valid_session_rows.append(ld_session_row)
 
-    d_sessions_by_id = {}
+    d_session_row_numbers = {
+        id(ld_session_row): i_row_number
+        for i_row_number, ld_session_row in enumerate(
+            ld_valid_sessions_rows, start=2
+        )
+    }
+    d_sessions_by_id: dict[str, Session] = {}
     for ld_session_row in ld_accepted_valid_session_rows:
         s_session_id = ld_session_row["session_id"]
         if s_session_id not in d_sessions_by_id:
-            d_sessions_by_id[s_session_id] = {
-                "participant": d_profiles_by_id[ld_session_row["participant_id"]],
-                "observations": [],
-                "usable_observations": [],
-                "low_quality_observations": [],
-            }
-        d_session = d_sessions_by_id[s_session_id]
-        d_session["observations"].append(ld_session_row)
-        s_quality_bucket = (
-            "usable_observations"
-            if is_good_signal_quality(
-                ld_session_row["signal_quality"], SIGNAL_QUALITY_THRESHOLD
+            d_sessions_by_id[s_session_id] = Session(
+                d_participants_by_id[ld_session_row["participant_id"]],
+                session_id=s_session_id,
             )
-            else "low_quality_observations"
-        )
-        d_session[s_quality_bucket].append(ld_session_row)
+        b_observation_added, s_add_message = d_sessions_by_id[
+            s_session_id
+        ].add_observation(ld_session_row)
+        if not b_observation_added:
+            ld_rejected_records.append(cv.create_validation_issue(
+                "fitness_sessions.csv",
+                d_session_row_numbers[id(ld_session_row)],
+                "observation",
+                s_add_message,
+            ))
 
     i_low_quality_observations = sum(
-        len(d_session["low_quality_observations"])
+        len(d_session.observations)
+        - len(d_session.get_good_quality_observations(SIGNAL_QUALITY_THRESHOLD))
         for d_session in d_sessions_by_id.values()
     )
-    i_insufficient_sessions = 0
-    for d_session in d_sessions_by_id.values():
-        if len(d_session["usable_observations"]) < MINIMUM_USABLE_OBSERVATIONS:
-            d_session["analysis_status"] = "insufficient data"
-            i_insufficient_sessions += 1
-        else:
-            d_session["analysis_status"] = "ready for classification"
+    i_insufficient_sessions = sum(
+        len(d_session.get_good_quality_observations(SIGNAL_QUALITY_THRESHOLD))
+        < MINIMUM_USABLE_OBSERVATIONS
+        for d_session in d_sessions_by_id.values()
+    )
 
     if ld_rejected_records:
         print("Rejected records:")

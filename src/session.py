@@ -21,10 +21,16 @@ class Session:
         participant (Participant): The participant associated with the session.
 
     """
-    def __init__(self, participant):
+    def __init__(self, participant, session_id: str | None = None):
 
         self.observations = []
         self.participant = participant
+        self._session_id = session_id
+
+    @property
+    def session_id(self) -> str | None:
+        """Get the session ID when it was supplied by the session CSV."""
+        return self._session_id
 
     def add_observation(self, observation_dict: dict) -> tuple[bool, str]:
         """
