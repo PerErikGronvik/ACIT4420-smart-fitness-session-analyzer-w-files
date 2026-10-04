@@ -84,9 +84,9 @@ def print_session_report(session, classification_result: dict) -> None:
     print(f"Observations: {report['usable_observations']}/{report['total_observations']} usable "
           f"({report['usable_percent']:.1f}%)")
     if report["usable_observations"]:
-          print(f"Heart rate: avg {report['avg_heart_rate']:.1f}, min {report['min_heart_rate']}, "
+        print(f"Heart rate: avg {report['avg_heart_rate']:.1f}, min {report['min_heart_rate']}, "
               f"max {report['max_heart_rate']}")
-          print(f"Average activity level: {report['avg_activity_level']:.2f}")
+        print(f"Average activity level: {report['avg_activity_level']:.2f}")
         print(
             f"Average heart rate vs baseline: "
             f"{report['heart_rate_change']:+.1f} bpm"
