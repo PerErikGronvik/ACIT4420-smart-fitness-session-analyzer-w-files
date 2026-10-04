@@ -5,6 +5,7 @@ import re
 from collections.abc import Callable
 
 from src.exceptions import InvalidIdentifierError, RejectedCsvRowError
+from src.validation import OBSERVATION_NUMERIC_RANGES, PROFILE_BASELINE_HEART_RATE_RANGE
 
 
 VERBOSE = False
@@ -29,19 +30,33 @@ SESSION_FIELDS = [
 PROFILE_NUMERIC_RULES: dict[
     str, tuple[Callable[[str], int | float], float | None, float | None]
 ] = {
-    "baseline_heart_rate": (int, 30, 230),
-    "baseline_skin_response": (float, 0, None),
-    "baseline_temperature": (float, 25, 42),
+    "baseline_heart_rate": (int, *PROFILE_BASELINE_HEART_RATE_RANGE),
+    "baseline_skin_response": (
+        float,
+        *OBSERVATION_NUMERIC_RANGES["skin_response"][:2],
+    ),
+    "baseline_temperature": (
+        float,
+        *OBSERVATION_NUMERIC_RANGES["temperature"][:2],
+    ),
+}
+SESSION_NUMERIC_CONVERTERS: dict[str, Callable[[str], int | float]] = {
+    "timestamp": int,
+    "heart_rate": int,
+    "skin_response": float,
+    "temperature": float,
+    "activity_level": float,
+    "signal_quality": float,
 }
 SESSION_NUMERIC_RULES: dict[
     str, tuple[Callable[[str], int | float], float | None, float | None]
 ] = {
-    "timestamp": (int, 0, None),
-    "heart_rate": (int, 30, 230),
-    "skin_response": (float, 0, None),
-    "temperature": (float, 25, 42),
-    "activity_level": (float, 0, 1),
-    "signal_quality": (float, 0, 1),
+    s_field: (
+        f_converter,
+        OBSERVATION_NUMERIC_RANGES[s_field][0],
+        OBSERVATION_NUMERIC_RANGES[s_field][1],
+    )
+    for s_field, f_converter in SESSION_NUMERIC_CONVERTERS.items()
 }
 ValidationIssue = dict[str, str | int]
 
@@ -99,7 +114,7 @@ def require_valid_session_id(s_identifier: object) -> None:
     """Raise InvalidIdentifierError unless the value is a valid session ID."""
     if not is_valid_session_id(s_identifier):
         raise InvalidIdentifierError(
-            f"InvalidIdentifierError: Expected FIT-YYYY-NNN; got {s_identifier!r}."
+            f"Expected FIT-YYYY-NNN; got {s_identifier!r}."
         )
 
 

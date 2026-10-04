@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from src import csv_validation as cv
 from src import perdas as pe
+from src.participant import Participant
 from src.report import write_analysis_report_txt, write_analysis_summary_csv, write_rejected_records_txt
 
 
@@ -174,6 +175,41 @@ class CsvValidationTests(unittest.TestCase):
                         [],
                     )
                 )
+
+    def test_profile_baseline_limit_matches_participant_model(self) -> None:
+        d_profile_row = {
+            "baseline_heart_rate": "120",
+            "baseline_skin_response": "1.2",
+            "baseline_temperature": "32.4",
+        }
+        self.assertTrue(
+            cv.convert_and_validate_numeric_fields(
+                "participants.csv",
+                2,
+                d_profile_row,
+                cv.PROFILE_NUMERIC_RULES,
+                [],
+            )
+        )
+        self.assertEqual(Participant("Test", 120).resting_heart_rate, 120)
+
+        d_profile_row = {
+            "baseline_heart_rate": "121",
+            "baseline_skin_response": "1.2",
+            "baseline_temperature": "32.4",
+        }
+        ld_issues = []
+        self.assertFalse(
+            cv.convert_and_validate_numeric_fields(
+                "participants.csv",
+                2,
+                d_profile_row,
+                cv.PROFILE_NUMERIC_RULES,
+                ld_issues,
+            )
+        )
+        with self.assertRaises(ValueError):
+            Participant("Test", 121)
 
     def test_missing_input_file_raises_contextual_error(self) -> None:
         with tempfile.TemporaryDirectory() as s_temp_directory:

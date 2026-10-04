@@ -4,6 +4,17 @@ Validation functions
 
 SIGNAL_QUALITY_THRESHOLD = 0.7
 MINIMUM_USABLE_OBSERVATIONS = 3
+PROFILE_BASELINE_HEART_RATE_RANGE: tuple[int, int] = (30, 120)
+OBSERVATION_NUMERIC_RANGES: dict[
+    str, tuple[float, float | None, str]
+] = {
+    "timestamp": (0, None, "Timestamp must be a non-negative integer."),
+    "heart_rate": (30, 230, "Heart rate must be between 30 and 230."),
+    "skin_response": (0, None, "Skin response must be 0.0 or greater."),
+    "temperature": (25, 42, "Temperature must be between 25 and 42."),
+    "activity_level": (0, 1, "Activity level must be between 0.0 and 1.0."),
+    "signal_quality": (0, 1, "Signal quality must be between 0.0 and 1.0."),
+}
 
 
 def validate_observation(observation_dict: dict) -> tuple[bool, str]:
@@ -31,17 +42,23 @@ def validate_observation(observation_dict: dict) -> tuple[bool, str]:
             return False, f"Missing required key: {key}"
 
     timestamp = observation_dict["timestamp"]
-    if isinstance(timestamp, bool) or not isinstance(timestamp, int) or timestamp < 0:
-        return False, "Timestamp must be a non-negative integer."
+    timestamp_minimum, _, timestamp_error = OBSERVATION_NUMERIC_RANGES["timestamp"]
+    if (
+        isinstance(timestamp, bool)
+        or not isinstance(timestamp, int)
+        or timestamp < timestamp_minimum
+    ):
+        return False, timestamp_error
 
     numeric_fields = (
-        ("heart_rate", 30, 230, "Heart rate must be between 30 and 230."),
-        ("skin_response", 0.0, None, "Skin response must be 0.0 or greater."),
-        ("temperature", 25, 42, "Temperature must be between 25 and 42."),
-        ("activity_level", 0.0, 1.0, "Activity level must be between 0.0 and 1.0."),
-        ("signal_quality", 0.0, 1.0, "Signal quality must be between 0.0 and 1.0."),
+        "heart_rate",
+        "skin_response",
+        "temperature",
+        "activity_level",
+        "signal_quality",
     )
-    for field, lower, upper, error_message in numeric_fields:
+    for field in numeric_fields:
+        lower, upper, error_message = OBSERVATION_NUMERIC_RANGES[field]
         value = observation_dict[field]
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return False, f"{field} must be numeric."

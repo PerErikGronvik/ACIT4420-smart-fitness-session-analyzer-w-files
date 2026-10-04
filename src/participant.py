@@ -2,6 +2,9 @@
 Participant class, represents a participant and the reference measurements.
 """
 
+from src.validation import PROFILE_BASELINE_HEART_RATE_RANGE
+
+
 class Participant:
     """
     Takes in: name(str), resting_heart_rate(int), resting_activity_level(float)
@@ -51,8 +54,11 @@ class Participant:
     @resting_heart_rate.setter
     def resting_heart_rate(self, value: int) -> None:
         """Set the resting heart rate."""
-        if value < 30 or value > 120:
-            raise ValueError("Resting heart rate must be between 30 and 120.")
+        minimum, maximum = PROFILE_BASELINE_HEART_RATE_RANGE
+        if value < minimum or value > maximum:
+            raise ValueError(
+                f"Resting heart rate must be between {minimum} and {maximum}."
+            )
         self._resting_heart_rate = value
     
     @property
