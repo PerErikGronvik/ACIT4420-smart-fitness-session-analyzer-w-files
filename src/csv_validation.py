@@ -4,6 +4,8 @@ import math
 import re
 from collections.abc import Callable
 
+from src.exceptions import InvalidIdentifierError
+
 
 PROFILE_FIELDS = [
     "participant_id",
@@ -73,6 +75,22 @@ def is_valid_session_id(s_identifier: object) -> bool:
     )
 
 
+def require_valid_participant_id(s_identifier: object) -> None:
+    """Raise InvalidIdentifierError unless the value is a valid participant ID."""
+    if not is_valid_participant_id(s_identifier):
+        raise InvalidIdentifierError(
+            f"Expected P followed by three digits; got {s_identifier!r}."
+        )
+
+
+def require_valid_session_id(s_identifier: object) -> None:
+    """Raise InvalidIdentifierError unless the value is a valid session ID."""
+    if not is_valid_session_id(s_identifier):
+        raise InvalidIdentifierError(
+            f"Expected FIT-YYYY-NNN; got {s_identifier!r}."
+        )
+
+
 def validate_profile_ids(
     s_source_name: str,
     ld_profile_rows: list[dict[str | None, str | list[str] | None]],
@@ -81,12 +99,14 @@ def validate_profile_ids(
     ld_validation_errors = []
     for i_row_number, ld_profile_row in enumerate(ld_profile_rows, start=2):
         s_participant_id = ld_profile_row.get("participant_id")
-        if not is_valid_participant_id(s_participant_id):
+        try:
+            require_valid_participant_id(s_participant_id)
+        except InvalidIdentifierError as error:
             ld_validation_errors.append(create_validation_issue(
                 s_source_name,
                 i_row_number,
                 "participant_id",
-                f"Expected P followed by three digits; got {s_participant_id!r}.",
+                str(error),
             ))
     return ld_validation_errors
 
@@ -100,19 +120,23 @@ def validate_session_ids(
     for i_row_number, ld_session_row in enumerate(ld_session_rows, start=2):
         s_session_id = ld_session_row.get("session_id")
         s_participant_id = ld_session_row.get("participant_id")
-        if not is_valid_session_id(s_session_id):
+        try:
+            require_valid_session_id(s_session_id)
+        except InvalidIdentifierError as error:
             ld_validation_errors.append(create_validation_issue(
                 s_source_name,
                 i_row_number,
                 "session_id",
-                f"Expected FIT-YYYY-NNN; got {s_session_id!r}.",
+                str(error),
             ))
-        if not is_valid_participant_id(s_participant_id):
+        try:
+            require_valid_participant_id(s_participant_id)
+        except InvalidIdentifierError as error:
             ld_validation_errors.append(create_validation_issue(
                 s_source_name,
                 i_row_number,
                 "participant_id",
-                f"Expected P followed by three digits; got {s_participant_id!r}.",
+                str(error),
             ))
     return ld_validation_errors
 
