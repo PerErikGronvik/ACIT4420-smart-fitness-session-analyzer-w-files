@@ -7,6 +7,8 @@ from collections.abc import Callable
 from src.exceptions import InvalidIdentifierError
 
 
+VERBOSE = True
+
 PROFILE_FIELDS = [
     "participant_id",
     "name",
@@ -79,7 +81,7 @@ def require_valid_participant_id(s_identifier: object) -> None:
     """Raise InvalidIdentifierError unless the value is a valid participant ID."""
     if not is_valid_participant_id(s_identifier):
         raise InvalidIdentifierError(
-            f"InvalidIdentifierError:Expected P followed by three digits; got {s_identifier!r}."
+            f"Expected P followed by three digits; got {s_identifier!r}."
         )
 
 
@@ -102,6 +104,11 @@ def validate_profile_ids(
         try:
             require_valid_participant_id(s_participant_id)
         except InvalidIdentifierError as error:
+            if VERBOSE:
+                print(
+                    f"Caught InvalidIdentifierError in {s_source_name} row "
+                    f"{i_row_number}, field participant_id: {error}"
+                )
             ld_validation_errors.append(create_validation_issue(
                 s_source_name,
                 i_row_number,
@@ -123,6 +130,11 @@ def validate_session_ids(
         try:
             require_valid_session_id(s_session_id)
         except InvalidIdentifierError as error:
+            if VERBOSE:
+                print(
+                    f"Caught InvalidIdentifierError in {s_source_name} row "
+                    f"{i_row_number}, field session_id: {error}"
+                )
             ld_validation_errors.append(create_validation_issue(
                 s_source_name,
                 i_row_number,
@@ -132,6 +144,11 @@ def validate_session_ids(
         try:
             require_valid_participant_id(s_participant_id)
         except InvalidIdentifierError as error:
+            if VERBOSE:
+                print(
+                    f"Caught InvalidIdentifierError in {s_source_name} row "
+                    f"{i_row_number}, field participant_id: {error}"
+                )
             ld_validation_errors.append(create_validation_issue(
                 s_source_name,
                 i_row_number,
