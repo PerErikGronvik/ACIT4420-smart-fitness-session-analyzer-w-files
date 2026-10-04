@@ -172,6 +172,7 @@ def validate_session_participants(
     s_source_name: str,
     ld_session_rows: list[dict[str | None, str | list[str] | None]],
     ds_known_participant_ids: set[str],
+    s_profile_source_name: str = "participants.csv",
 ) -> list[ValidationIssue]:
     """Return contextual errors for session rows referencing unknown participants."""
     ld_validation_errors = []
@@ -185,7 +186,7 @@ def validate_session_participants(
                 s_source_name,
                 i_row_number,
                 "participant_id",
-                f"{s_participant_id!r} is not present in participants.csv.",
+                f"{s_participant_id!r} is not present in {s_profile_source_name}.",
             ))
     return ld_validation_errors
 

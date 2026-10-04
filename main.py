@@ -24,21 +24,27 @@ def create_argument_parser() -> argparse.ArgumentParser:
         description=(
             "Validate fitness-session CSV rows, analyze sessions that pass "
             "validation, and write summary, explanation, and rejected-row reports. "
-            "The participant profile file is always read from "
-            "data/participants.csv relative to this program."
+            "Run this command from the repository root, or provide paths to the "
+            "input and output files."
         ),
         epilog=(
             "Examples:\n"
-            "  python main.py\n"
-            "  python main.py --sessions data/my_sessions.csv\n"
-            "  python main.py --sessions data/my_sessions.csv "
-            "--invalid-sessions data/bad_rows.csv --output-dir results\n\n"
+            "  python3 main.py --profiles data/participants.csv "
+            "--sessions data/fitness_sessions.csv --output output\n"
+            "  python3 main.py --profiles data/participants.csv "
+            "--sessions data/my_sessions.csv --output results\n\n"
             "Reports created in the output directory: analysis_summary.csv "
             "(one data row per analyzed session), analysis_report.txt "
             "(readable explanations of the results), and rejected_records.txt "
             "(invalid CSV rows and reasons). Rows from --invalid-sessions are "
             "checked and reported, but are not included in session analysis."
         ),
+    )
+    parser.add_argument(
+        "--profiles",
+        type=Path,
+        default=PROFILE_FILE,
+        help="participant profile CSV (default: data/participants.csv)",
     )
     parser.add_argument(
         "--sessions",
@@ -68,6 +74,8 @@ def create_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output-dir",
+        "--output",
+        dest="output_dir",
         type=Path,
         default=OUTPUT_DIRECTORY,
         help=(
@@ -85,7 +93,7 @@ def main(args: argparse.Namespace | None = None) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        ld_profiles_rows = pe.read_csv(PROFILE_FILE)
+        ld_profiles_rows = pe.read_csv(args.profiles)
     except (FileNotFoundError, PermissionError, csv.Error) as error:
         print(f"Could not load required participant profiles: {error}")
         return
@@ -107,10 +115,10 @@ def main(args: argparse.Namespace | None = None) -> None:
 
     ld_rejected_records = []
     ld_rejected_records.extend(
-        cv.validate_csv_rows(PROFILE_FILE.name, ld_profiles_rows, cv.PROFILE_FIELDS)
+        cv.validate_csv_rows(args.profiles.name, ld_profiles_rows, cv.PROFILE_FIELDS)
     )
     ld_rejected_records.extend(
-        cv.validate_profile_ids(PROFILE_FILE.name, ld_profiles_rows)
+        cv.validate_profile_ids(args.profiles.name, ld_profiles_rows)
     )
     ld_rejected_records.extend(
         cv.validate_csv_rows(
@@ -134,7 +142,7 @@ def main(args: argparse.Namespace | None = None) -> None:
             ld_profile_row.get("participant_id")
         )
         b_values_are_valid = cv.convert_and_validate_numeric_fields(
-            PROFILE_FILE.name,
+            args.profiles.name,
             i_row_number,
             ld_profile_row,
             cv.PROFILE_NUMERIC_RULES,
@@ -179,7 +187,10 @@ def main(args: argparse.Namespace | None = None) -> None:
         )
         ld_rejected_records.extend(
             cv.validate_session_participants(
-                s_source_name, ld_session_rows, ds_known_participant_ids
+                s_source_name,
+                ld_session_rows,
+                ds_known_participant_ids,
+                args.profiles.name,
             )
         )
         for i_row_number, ld_session_row in enumerate(ld_session_rows, start=2):
@@ -284,15 +295,18 @@ def main(args: argparse.Namespace | None = None) -> None:
                 f"{d_rejected_record['reason']}"
             )
 
-    i_accepted_rows = sum(
+    i_accepted_session_rows = sum(
         len(d_session.observations) for d_session in d_sessions_by_id.values()
     )
+    i_accepted_rows = len(d_participants_by_id) + i_accepted_session_rows
     i_rejected_rows = len({
         (d_record["source_file"], d_record["row_number"])
         for d_record in ld_rejected_records
     })
     print(
-        f"Completed: {i_accepted_rows} accepted session rows, "
+        f"Completed: {i_accepted_rows} accepted rows "
+        f"({len(d_participants_by_id)} profiles, "
+        f"{i_accepted_session_rows} session observations), "
         f"{i_rejected_rows} rejected CSV rows, {len(d_sessions_by_id)} sessions. "
         f"{i_low_quality_observations} low-quality observations were excluded "
         f"from analysis; {i_insufficient_sessions} sessions had fewer than "
