@@ -10,22 +10,25 @@ groups valid observations by session ID.
 
 ## Run
 
-From the repository root, run with the supplied default inputs:
+From the repository root, run with the supplied input files:
 
 ```bash
-python3 main.py
+python3 main.py --profiles data/participants.csv --sessions data/fitness_sessions.csv --output output
 ```
 
-The program uses the supplied `data/participants.csv` profile automatically,
-reads `data/fitness_sessions.csv` and `data/fitness_sessions_invalid.csv` by
-default, and writes reports to `output/`. It uses only the Python standard
-library. You can provide alternative session files or an output directory:
+The program validates the participant profiles and session observations, then
+writes its reports to `output/`. It uses only the Python standard library. The
+`--profiles`, `--sessions`, and `--output` options accept paths relative to the
+repository root (absolute paths also work). Optional invalid test data can be
+provided with `--invalid-sessions`:
 
 ```bash
-python3 main.py --sessions data/fitness_sessions.csv --invalid-sessions data/fitness_sessions_invalid.csv --output-dir output
+python3 main.py --profiles data/participants.csv --sessions data/fitness_sessions.csv --invalid-sessions data/fitness_sessions_invalid.csv --output output
 ```
 
-`--sessions` is also available as `--valid-sessions`.
+`--sessions` is also available as `--valid-sessions`; `--output` is also
+available as `--output-dir`. The completion summary reports accepted rows,
+rejected rows, and the report files created.
 
 ## Structure
 

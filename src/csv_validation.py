@@ -7,7 +7,7 @@ from collections.abc import Callable
 from src.exceptions import InvalidIdentifierError, RejectedCsvRowError
 
 
-VERBOSE = True
+VERBOSE = False
 
 PROFILE_FIELDS = [
     "participant_id",

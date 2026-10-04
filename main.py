@@ -83,6 +83,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
             "if needed (default: output/ next to main.py)"
         ),
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print validation exception details as they are caught",
+    )
     return parser
 
 
@@ -90,6 +95,7 @@ def main(args: argparse.Namespace | None = None) -> None:
     """Load the CSV data, validate it, group observations, and summarize."""
     if args is None:
         args = create_argument_parser().parse_args()
+    cv.VERBOSE = getattr(args, "verbose", False)
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
