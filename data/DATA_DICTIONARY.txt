@@ -21,3 +21,19 @@ fitness_sessions.csv and fitness_sessions_invalid.csv
 - signal_quality: normalized value from 0 to 1
 
 Important: The invalid files intentionally contain malformed identifiers, missing fields, invalid types, unknown people and out-of-range values. Programs should report these records clearly and continue when safe.
+
+OPTION A VALIDATION-RANGE SUPPLEMENT
+The following inclusive numeric limits describe the Option A implementation.
+
+participants.csv
+- baseline_heart_rate: integer from 30 to 120 bpm
+- baseline_skin_response: finite numeric value of 0 or greater; no upper limit or physical unit is specified
+- baseline_temperature: 25 to 42 degrees Celsius
+
+fitness_sessions.csv and fitness_sessions_invalid.csv
+- timestamp: non-negative integer observation index; not elapsed time
+- heart_rate: integer from 30 to 230 bpm
+- skin_response: finite simulated sensor value of 0 or greater; no upper limit or physical unit is specified
+- temperature: 25 to 42 degrees Celsius
+- activity_level: normalized, unitless value from 0 to 1
+- signal_quality: normalized, unitless value from 0 to 1; values below 0.7 are retained but excluded from analysis

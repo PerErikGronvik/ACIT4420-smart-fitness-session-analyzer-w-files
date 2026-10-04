@@ -20,17 +20,16 @@ def create_argument_parser() -> argparse.ArgumentParser:
             "Run this command from the repository root, or provide paths to the "
             "input and output files."
         ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Examples:\n"
-            "  python3 main.py --profiles data/participants.csv "
-            "--sessions data/fitness_sessions.csv --output output\n"
-            "  python3 main.py --profiles data/participants.csv "
-            "--sessions data/my_sessions.csv --output results\n\n"
-            "Reports created in the output directory: analysis_summary.csv "
-            "(one data row per analyzed session), analysis_report.txt "
-            "(readable explanations of the results), and rejected_records.txt "
-            "(invalid CSV rows and reasons). Rows from --invalid-sessions are "
-            "checked and reported, but are not included in session analysis."
+            "Examples (run from the repository root):\n"
+            "  python3 main.py\n"
+            "  python3 main.py --sessions data/my_sessions.csv --output results\n\n"
+            "Reports written to the output directory:\n"
+            "  analysis_summary.csv: one row per analyzed session\n"
+            "  analysis_report.txt: explanations and baseline comparisons\n"
+            "  rejected_records.txt: rejected rows with source, row, field, and reason\n\n"
+            "Rows from --invalid-sessions are checked and reported, but not analyzed."
         ),
     )
     parser.add_argument(
