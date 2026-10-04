@@ -16,13 +16,13 @@ From the repository root, run with the supplied default inputs:
 python3 main.py
 ```
 
-The program uses `data/participants.csv`, `data/fitness_sessions.csv`, and
-`data/fitness_sessions_invalid.csv`, and writes reports to `output/`. It uses
-only the Python standard library. You can provide alternative paths without
-editing source code:
+The program uses the supplied `data/participants.csv` profile automatically,
+reads `data/fitness_sessions.csv` and `data/fitness_sessions_invalid.csv` by
+default, and writes reports to `output/`. It uses only the Python standard
+library. You can provide alternative session files or an output directory:
 
 ```bash
-python3 main.py --profiles data/participants.csv --sessions data/fitness_sessions.csv --invalid-sessions data/fitness_sessions_invalid.csv --output-dir output
+python3 main.py --sessions data/fitness_sessions.csv --invalid-sessions data/fitness_sessions_invalid.csv --output-dir output
 ```
 
 `--sessions` is also available as `--valid-sessions`.

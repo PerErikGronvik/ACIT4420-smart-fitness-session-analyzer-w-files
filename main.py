@@ -14,6 +14,7 @@ from src.validation import MINIMUM_USABLE_OBSERVATIONS, SIGNAL_QUALITY_THRESHOLD
 
 
 DATA_DIRECTORY = Path(__file__).resolve().parent / "data"
+PROFILE_FILE = DATA_DIRECTORY / "participants.csv"
 OUTPUT_DIRECTORY = Path(__file__).resolve().parent / "output"
 
 
@@ -21,12 +22,6 @@ def create_argument_parser() -> argparse.ArgumentParser:
     """Create the CLI parser for CSV input and report output paths."""
     parser = argparse.ArgumentParser(
         description="Validate and analyze fitness sessions from CSV files."
-    )
-    parser.add_argument(
-        "--profiles",
-        type=Path,
-        default=DATA_DIRECTORY / "participants.csv",
-        help="participant CSV file (default: data/participants.csv)",
     )
     parser.add_argument(
         "--sessions",
@@ -58,7 +53,7 @@ def main(args: argparse.Namespace | None = None) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        ld_profiles_rows = pe.read_csv(args.profiles)
+        ld_profiles_rows = pe.read_csv(PROFILE_FILE)
     except (FileNotFoundError, PermissionError, csv.Error) as error:
         print(f"Could not load required participant profiles: {error}")
         return
@@ -80,10 +75,10 @@ def main(args: argparse.Namespace | None = None) -> None:
 
     ld_rejected_records = []
     ld_rejected_records.extend(
-        cv.validate_csv_rows(args.profiles.name, ld_profiles_rows, cv.PROFILE_FIELDS)
+        cv.validate_csv_rows(PROFILE_FILE.name, ld_profiles_rows, cv.PROFILE_FIELDS)
     )
     ld_rejected_records.extend(
-        cv.validate_profile_ids(args.profiles.name, ld_profiles_rows)
+        cv.validate_profile_ids(PROFILE_FILE.name, ld_profiles_rows)
     )
     ld_rejected_records.extend(
         cv.validate_csv_rows(
@@ -107,7 +102,7 @@ def main(args: argparse.Namespace | None = None) -> None:
             ld_profile_row.get("participant_id")
         )
         b_values_are_valid = cv.convert_and_validate_numeric_fields(
-            args.profiles.name,
+            PROFILE_FILE.name,
             i_row_number,
             ld_profile_row,
             cv.PROFILE_NUMERIC_RULES,
@@ -132,7 +127,7 @@ def main(args: argparse.Namespace | None = None) -> None:
             )
         except ValueError as error:
             ld_rejected_records.append(cv.create_validation_issue(
-                args.profiles.name,
+                PROFILE_FILE.name,
                 d_profile_row_numbers[id(ld_profile_row)],
                 "baseline_heart_rate",
                 str(error),
