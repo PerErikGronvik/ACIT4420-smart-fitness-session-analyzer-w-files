@@ -10,14 +10,22 @@ groups valid observations by session ID.
 
 ## Run
 
-From this repository directory, run:
+From the repository root, run with the supplied default inputs:
 
 ```bash
-python main.py
+python3 main.py
 ```
 
 The program uses `data/participants.csv`, `data/fitness_sessions.csv`, and
-`data/fitness_sessions_invalid.csv`. It uses only the Python standard library.
+`data/fitness_sessions_invalid.csv`, and writes reports to `output/`. It uses
+only the Python standard library. You can provide alternative paths without
+editing source code:
+
+```bash
+python3 main.py --profiles data/participants.csv --sessions data/fitness_sessions.csv --invalid-sessions data/fitness_sessions_invalid.csv --output-dir output
+```
+
+`--sessions` is also available as `--valid-sessions`.
 
 ## Structure
 

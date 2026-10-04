@@ -1,5 +1,6 @@
 """Load and organize the official Assignment II fitness CSV files."""
 
+import argparse
 import csv
 from pathlib import Path
 
@@ -16,48 +17,82 @@ DATA_DIRECTORY = Path(__file__).resolve().parent / "data"
 OUTPUT_DIRECTORY = Path(__file__).resolve().parent / "output"
 
 
-def main() -> None:
+def create_argument_parser() -> argparse.ArgumentParser:
+    """Create the CLI parser for CSV input and report output paths."""
+    parser = argparse.ArgumentParser(
+        description="Validate and analyze fitness sessions from CSV files."
+    )
+    parser.add_argument(
+        "--profiles",
+        type=Path,
+        default=DATA_DIRECTORY / "participants.csv",
+        help="participant CSV file (default: data/participants.csv)",
+    )
+    parser.add_argument(
+        "--sessions",
+        "--valid-sessions",
+        dest="valid_sessions",
+        type=Path,
+        default=DATA_DIRECTORY / "fitness_sessions.csv",
+        help="valid session CSV file (default: data/fitness_sessions.csv)",
+    )
+    parser.add_argument(
+        "--invalid-sessions",
+        type=Path,
+        default=DATA_DIRECTORY / "fitness_sessions_invalid.csv",
+        help="invalid session CSV file (default: data/fitness_sessions_invalid.csv)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=OUTPUT_DIRECTORY,
+        help="report output directory (default: output)",
+    )
+    return parser
+
+
+def main(args: argparse.Namespace | None = None) -> None:
     """Load the CSV data, validate it, group observations, and summarize."""
-    OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    if args is None:
+        args = create_argument_parser().parse_args()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        ld_profiles_rows = pe.read_csv(DATA_DIRECTORY / "participants.csv")
+        ld_profiles_rows = pe.read_csv(args.profiles)
     except (FileNotFoundError, PermissionError, csv.Error) as error:
         print(f"Could not load required participant profiles: {error}")
         return
 
     try:
-        ld_valid_sessions_rows = pe.read_csv(DATA_DIRECTORY / "fitness_sessions.csv")
+        ld_valid_sessions_rows = pe.read_csv(args.valid_sessions)
     except (FileNotFoundError, PermissionError, csv.Error) as error:
-        print(f"Could not load fitness_sessions.csv; continuing without it: {error}")
+        print(f"Could not load {args.valid_sessions.name}; continuing without it: {error}")
         ld_valid_sessions_rows = []
 
     try:
-        ld_invalid_sessions_rows = pe.read_csv(
-            DATA_DIRECTORY / "fitness_sessions_invalid.csv"
-        )
+        ld_invalid_sessions_rows = pe.read_csv(args.invalid_sessions)
     except (FileNotFoundError, PermissionError, csv.Error) as error:
         print(
-            "Could not load fitness_sessions_invalid.csv; "
+            f"Could not load {args.invalid_sessions.name}; "
             f"continuing without it: {error}"
         )
         ld_invalid_sessions_rows = []
 
     ld_rejected_records = []
     ld_rejected_records.extend(
-        cv.validate_csv_rows("participants.csv", ld_profiles_rows, cv.PROFILE_FIELDS)
+        cv.validate_csv_rows(args.profiles.name, ld_profiles_rows, cv.PROFILE_FIELDS)
     )
     ld_rejected_records.extend(
-        cv.validate_profile_ids("participants.csv", ld_profiles_rows)
+        cv.validate_profile_ids(args.profiles.name, ld_profiles_rows)
     )
     ld_rejected_records.extend(
         cv.validate_csv_rows(
-            "fitness_sessions.csv", ld_valid_sessions_rows, cv.SESSION_FIELDS
+            args.valid_sessions.name, ld_valid_sessions_rows, cv.SESSION_FIELDS
         )
     )
     ld_rejected_records.extend(
         cv.validate_csv_rows(
-            "fitness_sessions_invalid.csv",
+            args.invalid_sessions.name,
             ld_invalid_sessions_rows,
             cv.SESSION_FIELDS,
         )
@@ -72,7 +107,7 @@ def main() -> None:
             ld_profile_row.get("participant_id")
         )
         b_values_are_valid = cv.convert_and_validate_numeric_fields(
-            "participants.csv",
+            args.profiles.name,
             i_row_number,
             ld_profile_row,
             cv.PROFILE_NUMERIC_RULES,
@@ -97,7 +132,7 @@ def main() -> None:
             )
         except ValueError as error:
             ld_rejected_records.append(cv.create_validation_issue(
-                "participants.csv",
+                args.profiles.name,
                 d_profile_row_numbers[id(ld_profile_row)],
                 "baseline_heart_rate",
                 str(error),
@@ -108,9 +143,9 @@ def main() -> None:
     ds_known_participant_ids = set(d_participants_by_id)
 
     ld_accepted_valid_session_rows = []
-    for s_source_name, ld_session_rows in (
-        ("fitness_sessions.csv", ld_valid_sessions_rows),
-        ("fitness_sessions_invalid.csv", ld_invalid_sessions_rows),
+    for s_source_name, ld_session_rows, b_is_valid_input in (
+        (args.valid_sessions.name, ld_valid_sessions_rows, True),
+        (args.invalid_sessions.name, ld_invalid_sessions_rows, False),
     ):
         ld_rejected_records.extend(
             cv.validate_session_ids(s_source_name, ld_session_rows)
@@ -141,7 +176,7 @@ def main() -> None:
                 ld_rejected_records,
             )
             if (
-                s_source_name == "fitness_sessions.csv"
+                b_is_valid_input
                 and b_shape_is_valid
                 and b_ids_are_valid
                 and b_participant_is_known
@@ -168,7 +203,7 @@ def main() -> None:
         ].add_observation(ld_session_row)
         if not b_observation_added:
             ld_rejected_records.append(cv.create_validation_issue(
-                "fitness_sessions.csv",
+                args.valid_sessions.name,
                 d_session_row_numbers[id(ld_session_row)],
                 "observation",
                 s_add_message,
@@ -186,17 +221,17 @@ def main() -> None:
     print("Session comparison summary:")
     print(generate_summary_table(ld_analysis_results))
     summary_path = write_analysis_summary_csv(
-        ld_analysis_results, OUTPUT_DIRECTORY
+        ld_analysis_results, args.output_dir
     )
 
     print(f"Wrote analysis summary: {summary_path}")
     report_path = write_analysis_report_txt(
-        ld_analysis_results, OUTPUT_DIRECTORY
+        ld_analysis_results, args.output_dir
     )
     
     print(f"Wrote readable analysis report: {report_path}")
     rejected_path = write_rejected_records_txt(
-        ld_rejected_records, OUTPUT_DIRECTORY
+        ld_rejected_records, args.output_dir
     )
     
     print(f"Wrote rejected-record details: {rejected_path}")
@@ -222,17 +257,23 @@ def main() -> None:
                 f"{d_rejected_record['reason']}"
             )
 
+    i_accepted_rows = sum(
+        len(d_session.observations) for d_session in d_sessions_by_id.values()
+    )
+    i_rejected_rows = len({
+        (d_record["source_file"], d_record["row_number"])
+        for d_record in ld_rejected_records
+    })
     print(
-        f"Read {len(ld_profiles_rows)} participant profiles, "
-        f"accepted {len(ld_accepted_valid_session_rows)} valid observations "
-        f"across {len(d_sessions_by_id)} sessions; "
-        f"{i_low_quality_observations} observations below the "
-        f"{SIGNAL_QUALITY_THRESHOLD} signal-quality threshold are excluded "
-        "from analysis; "
-        f"{i_insufficient_sessions} sessions have fewer than "
-        f"{MINIMUM_USABLE_OBSERVATIONS} usable observations. Read "
-        f"{len(ld_invalid_sessions_rows)} intentionally invalid session rows "
-        f"({len(ld_rejected_records)} rejection records)."
+        f"Completed: {i_accepted_rows} accepted session rows, "
+        f"{i_rejected_rows} rejected CSV rows, {len(d_sessions_by_id)} sessions. "
+        f"{i_low_quality_observations} low-quality observations were excluded "
+        f"from analysis; {i_insufficient_sessions} sessions had fewer than "
+        f"{MINIMUM_USABLE_OBSERVATIONS} usable observations."
+    )
+    print(
+        "Created reports: "
+        f"{summary_path}, {report_path}, {rejected_path}"
     )
 
 
