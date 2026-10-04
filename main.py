@@ -21,27 +21,59 @@ OUTPUT_DIRECTORY = Path(__file__).resolve().parent / "output"
 def create_argument_parser() -> argparse.ArgumentParser:
     """Create the CLI parser for CSV input and report output paths."""
     parser = argparse.ArgumentParser(
-        description="Validate and analyze fitness sessions from CSV files."
+        description=(
+            "Validate fitness-session CSV rows, analyze sessions that pass "
+            "validation, and write summary, explanation, and rejected-row reports. "
+            "The participant profile file is always read from "
+            "data/participants.csv relative to this program."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  python main.py\n"
+            "  python main.py --sessions data/my_sessions.csv\n"
+            "  python main.py --sessions data/my_sessions.csv "
+            "--invalid-sessions data/bad_rows.csv --output-dir results\n\n"
+            "Reports created in the output directory: analysis_summary.csv "
+            "(one data row per analyzed session), analysis_report.txt "
+            "(readable explanations of the results), and rejected_records.txt "
+            "(invalid CSV rows and reasons). Rows from --invalid-sessions are "
+            "checked and reported, but are not included in session analysis."
+        ),
     )
     parser.add_argument(
         "--sessions",
         "--valid-sessions",
         dest="valid_sessions",
+        nargs="?",
         type=Path,
+        const=DATA_DIRECTORY / "fitness_sessions.csv",
         default=DATA_DIRECTORY / "fitness_sessions.csv",
-        help="valid session CSV file (default: data/fitness_sessions.csv)",
+        help=(
+            "CSV file containing session observations to analyze. Use this to "
+            "replace data/fitness_sessions.csv; if the option is written without "
+            "a path, the default file is used."
+        ),
     )
     parser.add_argument(
         "--invalid-sessions",
+        nargs="?",
         type=Path,
+        const=DATA_DIRECTORY / "fitness_sessions_invalid.csv",
         default=DATA_DIRECTORY / "fitness_sessions_invalid.csv",
-        help="invalid session CSV file (default: data/fitness_sessions_invalid.csv)",
+        help=(
+            "CSV file of deliberately invalid or test rows to validate and list "
+            "in rejected_records.txt. These rows are not analyzed. If omitted, "
+            "data/fitness_sessions_invalid.csv is checked."
+        ),
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=OUTPUT_DIRECTORY,
-        help="report output directory (default: output)",
+        help=(
+            "directory where the three report files are written; it is created "
+            "if needed (default: output/ next to main.py)"
+        ),
     )
     return parser
 
