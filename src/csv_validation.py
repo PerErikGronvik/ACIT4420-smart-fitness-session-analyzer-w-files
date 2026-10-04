@@ -4,7 +4,7 @@ import math
 import re
 from collections.abc import Callable
 
-from src.exceptions import InvalidIdentifierError
+from src.exceptions import InvalidIdentifierError, RejectedCsvRowError
 
 
 VERBOSE = True
@@ -52,13 +52,23 @@ def create_validation_issue(
     s_field: str,
     s_reason: str,
 ) -> ValidationIssue:
-    """Build a structured validation finding with its source context."""
-    return {
-        "source_file": s_source_name,
-        "row_number": i_row_number,
-        "field": s_field,
-        "reason": s_reason,
-    }
+    """Raise and handle a row rejection, returning it as a structured finding."""
+    try:
+        raise RejectedCsvRowError(
+            s_source_name, i_row_number, s_field, s_reason
+        )
+    except RejectedCsvRowError as error:
+        if VERBOSE:
+            print(
+                f"Caught RejectedCsvRowError in {error.source_file} row "
+                f"{error.row_number}, field {error.field}: {error.reason}"
+            )
+        return {
+            "source_file": error.source_file,
+            "row_number": error.row_number,
+            "field": error.field,
+            "reason": error.reason,
+        }
 
 
 def is_valid_participant_id(s_identifier: object) -> bool:
