@@ -4,7 +4,9 @@ from pathlib import Path
 
 from src import csv_validation as cv
 from src import perdas as pe
+from src.classifier import SessionClassifier
 from src.participant import Participant
+from src.report import generate_session_report, generate_summary_table, print_session_report
 from src.session import Session
 from src.validation import (
     MINIMUM_USABLE_OBSERVATIONS,
@@ -138,6 +140,18 @@ def main() -> None:
                 "observation",
                 s_add_message,
             ))
+
+    ld_analysis_results = []
+    for d_session in d_sessions_by_id.values():
+        d_classification_result = SessionClassifier.classify_session(d_session)
+        d_analysis_result = generate_session_report(
+            d_session, d_classification_result
+        )
+        ld_analysis_results.append(d_analysis_result)
+        print_session_report(d_session, d_classification_result)
+
+    print("Session comparison summary:")
+    print(generate_summary_table(ld_analysis_results))
 
     i_low_quality_observations = sum(
         len(d_session.observations)
