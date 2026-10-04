@@ -41,8 +41,9 @@ python3 -m unittest test_csv_validation test_domain_analysis
 ## Structure
 
 ```text
-main.py                 coordinates loading, validation, grouping, and summary output
+main.py                 parses CLI arguments and starts the application workflow
 data/                   supplied Option A CSV files and data dictionary
+src/application.py      coordinates loading, validation, session building, analysis, and reports
 src/csv_validation.py   CSV schema, identifier, conversion, and range checks
 src/perdas.py            reusable CSV reader
 src/                    participant, observation, session, and analysis modules
