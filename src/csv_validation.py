@@ -201,7 +201,16 @@ def validate_csv_rows(
 
     for i_row_number, ld_csv_row in enumerate(ld_csv_rows, start=2):
         for s_field in ls_expected_fields:
-            s_value = ld_csv_row.get(s_field)
+            try:
+                s_value = ld_csv_row[s_field]
+            except KeyError:
+                ld_validation_errors.append(create_validation_issue(
+                    s_source_name,
+                    i_row_number,
+                    s_field,
+                    "Required column is missing from the CSV header.",
+                ))
+                continue
             if s_value is None or (isinstance(s_value, str) and not s_value.strip()):
                 ld_validation_errors.append(create_validation_issue(
                     s_source_name,

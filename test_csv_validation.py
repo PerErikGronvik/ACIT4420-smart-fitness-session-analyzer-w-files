@@ -82,6 +82,20 @@ class CsvValidationTests(unittest.TestCase):
             d_issue["field"] == "activity_level" for d_issue in ld_issues
         ))
 
+    def test_missing_header_column_is_reported(self) -> None:
+        d_session_row = self.make_session_row()
+        del d_session_row["signal_quality"]
+
+        ld_issues = cv.validate_csv_rows(
+            "fitness_sessions.csv", [d_session_row], cv.SESSION_FIELDS
+        )
+
+        self.assertTrue(any(
+            d_issue["field"] == "signal_quality"
+            and "missing from the CSV header" in d_issue["reason"]
+            for d_issue in ld_issues
+        ))
+
     def test_short_row_reports_missing_field_and_column_count(self) -> None:
         d_session_row = self.make_session_row(signal_quality=None)
 
