@@ -1,5 +1,6 @@
 """Load and organize the official Assignment II fitness CSV files."""
 
+import csv
 from pathlib import Path
 
 from src import csv_validation as cv
@@ -20,9 +21,15 @@ DATA_DIRECTORY = Path(__file__).resolve().parent / "data"
 
 def main() -> None:
     """Load the CSV data, validate it, group observations, and summarize."""
-    ld_profiles_rows = pe.read_csv(DATA_DIRECTORY / "participants.csv")
-    ld_valid_sessions_rows = pe.read_csv(DATA_DIRECTORY / "fitness_sessions.csv")
-    ld_invalid_sessions_rows = pe.read_csv(DATA_DIRECTORY / "fitness_sessions_invalid.csv")
+    try:
+        ld_profiles_rows = pe.read_csv(DATA_DIRECTORY / "participants.csv")
+        ld_valid_sessions_rows = pe.read_csv(DATA_DIRECTORY / "fitness_sessions.csv")
+        ld_invalid_sessions_rows = pe.read_csv(
+            DATA_DIRECTORY / "fitness_sessions_invalid.csv"
+        )
+    except (FileNotFoundError, PermissionError, csv.Error) as error:
+        print(f"Could not load required CSV input: {error}")
+        return
 
     ld_rejected_records = []
     ld_rejected_records.extend(
@@ -62,16 +69,30 @@ def main() -> None:
         if b_shape_is_valid and b_id_is_valid and b_values_are_valid:
             ld_accepted_profile_rows.append(ld_profile_row)
 
-    d_participants_by_id = {
-        ld_profile_row["participant_id"]: Participant(
-            name=ld_profile_row["name"],
-            resting_heart_rate=ld_profile_row["baseline_heart_rate"],
-            participant_id=ld_profile_row["participant_id"],
-            baseline_skin_response=ld_profile_row["baseline_skin_response"],
-            baseline_temperature=ld_profile_row["baseline_temperature"],
-        )
-        for ld_profile_row in ld_accepted_profile_rows
+    d_profile_row_numbers = {
+        id(ld_profile_row): i_row_number
+        for i_row_number, ld_profile_row in enumerate(ld_profiles_rows, start=2)
     }
+    d_participants_by_id = {}
+    for ld_profile_row in ld_accepted_profile_rows:
+        try:
+            d_participant = Participant(
+                name=ld_profile_row["name"],
+                resting_heart_rate=ld_profile_row["baseline_heart_rate"],
+                participant_id=ld_profile_row["participant_id"],
+                baseline_skin_response=ld_profile_row["baseline_skin_response"],
+                baseline_temperature=ld_profile_row["baseline_temperature"],
+            )
+        except ValueError as error:
+            ld_rejected_records.append(cv.create_validation_issue(
+                "participants.csv",
+                d_profile_row_numbers[id(ld_profile_row)],
+                "baseline_heart_rate",
+                str(error),
+            ))
+            continue
+        d_participants_by_id[ld_profile_row["participant_id"]] = d_participant
+
     ds_known_participant_ids = set(d_participants_by_id)
 
     ld_accepted_valid_session_rows = []
