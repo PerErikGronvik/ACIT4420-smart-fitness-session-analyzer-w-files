@@ -3,6 +3,7 @@ Validation functions
 """
 
 SIGNAL_QUALITY_THRESHOLD = 0.7
+MINIMUM_USABLE_OBSERVATIONS = 3
 
 
 def validate_observation(observation_dict: dict) -> tuple[bool, str]:

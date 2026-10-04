@@ -4,7 +4,11 @@ from pathlib import Path
 
 from src import csv_validation as cv
 from src import perdas as pe
-from src.validation import SIGNAL_QUALITY_THRESHOLD, is_good_signal_quality
+from src.validation import (
+    MINIMUM_USABLE_OBSERVATIONS,
+    SIGNAL_QUALITY_THRESHOLD,
+    is_good_signal_quality,
+)
 
 
 DATA_DIRECTORY = Path(__file__).resolve().parent / "data"
@@ -127,6 +131,13 @@ def main() -> None:
         len(d_session["low_quality_observations"])
         for d_session in d_sessions_by_id.values()
     )
+    i_insufficient_sessions = 0
+    for d_session in d_sessions_by_id.values():
+        if len(d_session["usable_observations"]) < MINIMUM_USABLE_OBSERVATIONS:
+            d_session["analysis_status"] = "insufficient data"
+            i_insufficient_sessions += 1
+        else:
+            d_session["analysis_status"] = "ready for classification"
 
     if ld_rejected_records:
         print("Rejected records:")
@@ -144,7 +155,9 @@ def main() -> None:
         f"across {len(d_sessions_by_id)} sessions; "
         f"{i_low_quality_observations} observations below the "
         f"{SIGNAL_QUALITY_THRESHOLD} signal-quality threshold are excluded "
-        "from analysis. Read "
+        "from analysis; "
+        f"{i_insufficient_sessions} sessions have fewer than "
+        f"{MINIMUM_USABLE_OBSERVATIONS} usable observations. Read "
         f"{len(ld_invalid_sessions_rows)} intentionally invalid session rows "
         f"({len(ld_rejected_records)} rejection records)."
     )

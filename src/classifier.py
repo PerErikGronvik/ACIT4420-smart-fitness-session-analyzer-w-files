@@ -3,6 +3,7 @@ SessionClassifier for analyzing and classifying fitness sessions.
 """
 
 from src.calculations import calculate_average, calculate_hr_elevation, detect_recovery
+from src.validation import MINIMUM_USABLE_OBSERVATIONS
 
 
 class SessionClassifier:
@@ -36,10 +37,13 @@ class SessionClassifier:
         """
         usable = session.get_good_quality_observations()
 
-        if len(usable) < 3:
+        if len(usable) < MINIMUM_USABLE_OBSERVATIONS:
             return {
                 "classification": "insufficient data",
-                "reason": f"Only {len(usable)} usable observations; at least 3 are required.",
+                "reason": (
+                    f"Only {len(usable)} usable observations; at least "
+                    f"{MINIMUM_USABLE_OBSERVATIONS} are required."
+                ),
                 "confidence": 0.0,
                 "avg_heart_rate": 0,
                 "hr_increase_percent": 0,

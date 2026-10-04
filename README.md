@@ -36,5 +36,6 @@ src/                    participant, observation, session, and analysis modules
 - `signal_quality` must be between `0.0` and `1.0`. Values below `0.7` are kept
   as low-quality observations but excluded from the usable observations used
   for analysis.
-- A session with fewer than three usable observations is insufficient for
+- A session with fewer than `MINIMUM_USABLE_OBSERVATIONS` (currently 3) usable
+  observations is marked insufficient for
   classification.
