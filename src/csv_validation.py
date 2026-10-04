@@ -39,6 +39,22 @@ SESSION_NUMERIC_RULES: dict[
     "activity_level": (float, 0, 1),
     "signal_quality": (float, 0, 1),
 }
+ValidationIssue = dict[str, str | int]
+
+
+def create_validation_issue(
+    s_source_name: str,
+    i_row_number: int,
+    s_field: str,
+    s_reason: str,
+) -> ValidationIssue:
+    """Build a structured validation finding with its source context."""
+    return {
+        "source_file": s_source_name,
+        "row_number": i_row_number,
+        "field": s_field,
+        "reason": s_reason,
+    }
 
 
 def is_valid_participant_id(s_identifier: object) -> bool:
@@ -60,38 +76,44 @@ def is_valid_session_id(s_identifier: object) -> bool:
 def validate_profile_ids(
     s_source_name: str,
     ld_profile_rows: list[dict[str | None, str | list[str] | None]],
-) -> list[str]:
+) -> list[ValidationIssue]:
     """Return contextual errors for profile rows with malformed participant IDs."""
     ld_validation_errors = []
     for i_row_number, ld_profile_row in enumerate(ld_profile_rows, start=2):
         s_participant_id = ld_profile_row.get("participant_id")
         if not is_valid_participant_id(s_participant_id):
-            ld_validation_errors.append(
-                f"{s_source_name} row {i_row_number}: invalid participant_id "
-                f"{s_participant_id!r}; expected P followed by three digits."
-            )
+            ld_validation_errors.append(create_validation_issue(
+                s_source_name,
+                i_row_number,
+                "participant_id",
+                f"Expected P followed by three digits; got {s_participant_id!r}.",
+            ))
     return ld_validation_errors
 
 
 def validate_session_ids(
     s_source_name: str,
     ld_session_rows: list[dict[str | None, str | list[str] | None]],
-) -> list[str]:
+) -> list[ValidationIssue]:
     """Return contextual errors for malformed session and participant IDs."""
     ld_validation_errors = []
     for i_row_number, ld_session_row in enumerate(ld_session_rows, start=2):
         s_session_id = ld_session_row.get("session_id")
         s_participant_id = ld_session_row.get("participant_id")
         if not is_valid_session_id(s_session_id):
-            ld_validation_errors.append(
-                f"{s_source_name} row {i_row_number}: invalid session_id "
-                f"{s_session_id!r}; expected FIT-YYYY-NNN."
-            )
+            ld_validation_errors.append(create_validation_issue(
+                s_source_name,
+                i_row_number,
+                "session_id",
+                f"Expected FIT-YYYY-NNN; got {s_session_id!r}.",
+            ))
         if not is_valid_participant_id(s_participant_id):
-            ld_validation_errors.append(
-                f"{s_source_name} row {i_row_number}: invalid participant_id "
-                f"{s_participant_id!r}; expected P followed by three digits."
-            )
+            ld_validation_errors.append(create_validation_issue(
+                s_source_name,
+                i_row_number,
+                "participant_id",
+                f"Expected P followed by three digits; got {s_participant_id!r}.",
+            ))
     return ld_validation_errors
 
 
@@ -99,7 +121,7 @@ def validate_session_participants(
     s_source_name: str,
     ld_session_rows: list[dict[str | None, str | list[str] | None]],
     ds_known_participant_ids: set[str],
-) -> list[str]:
+) -> list[ValidationIssue]:
     """Return contextual errors for session rows referencing unknown participants."""
     ld_validation_errors = []
     for i_row_number, ld_session_row in enumerate(ld_session_rows, start=2):
@@ -108,11 +130,12 @@ def validate_session_participants(
             is_valid_participant_id(s_participant_id)
             and s_participant_id not in ds_known_participant_ids
         ):
-            ld_validation_errors.append(
-                f"{s_source_name} row {i_row_number}: participant_id "
-                f"{s_participant_id!r} does not match any participant in "
-                "participants.csv."
-            )
+            ld_validation_errors.append(create_validation_issue(
+                s_source_name,
+                i_row_number,
+                "participant_id",
+                f"{s_participant_id!r} is not present in participants.csv.",
+            ))
     return ld_validation_errors
 
 
@@ -120,7 +143,7 @@ def validate_csv_rows(
     s_source_name: str,
     ld_csv_rows: list[dict[str | None, str | list[str] | None]],
     ls_expected_fields: list[str],
-) -> list[str]:
+) -> list[ValidationIssue]:
     """Report missing required fields and row lengths that do not match the schema."""
     ld_validation_errors = []
     i_expected_length = len(ls_expected_fields)
@@ -129,10 +152,12 @@ def validate_csv_rows(
         for s_field in ls_expected_fields:
             s_value = ld_csv_row.get(s_field)
             if s_value is None or (isinstance(s_value, str) and not s_value.strip()):
-                ld_validation_errors.append(
-                    f"{s_source_name} row {i_row_number}: missing required field "
-                    f"{s_field}."
-                )
+                ld_validation_errors.append(create_validation_issue(
+                    s_source_name,
+                    i_row_number,
+                    s_field,
+                    "Required field is blank or missing.",
+                ))
 
         i_actual_length = sum(
             s_field in ld_csv_row and ld_csv_row[s_field] is not None
@@ -144,10 +169,12 @@ def validate_csv_rows(
             i_actual_length += len(v_extra_fields)
 
         if i_actual_length != i_expected_length:
-            ld_validation_errors.append(
-                f"{s_source_name} row {i_row_number}: unexpected row length; "
-                f"found {i_actual_length} fields, expected {i_expected_length}."
-            )
+            ld_validation_errors.append(create_validation_issue(
+                s_source_name,
+                i_row_number,
+                "row",
+                f"Expected {i_expected_length} columns; found {i_actual_length}.",
+            ))
 
         ls_unexpected_fields = [
             s_field
@@ -155,10 +182,13 @@ def validate_csv_rows(
             if s_field is not None and s_field not in ls_expected_fields
         ]
         if ls_unexpected_fields:
-            ld_validation_errors.append(
-                f"{s_source_name} row {i_row_number}: unexpected fields "
-                f"{ls_unexpected_fields}."
-            )
+            for s_field in ls_unexpected_fields:
+                ld_validation_errors.append(create_validation_issue(
+                    s_source_name,
+                    i_row_number,
+                    s_field,
+                    "Unexpected column in row.",
+                ))
 
     return ld_validation_errors
 
@@ -185,7 +215,7 @@ def convert_and_validate_numeric_fields(
     d_numeric_rules: dict[
         str, tuple[Callable[[str], int | float], float | None, float | None]
     ],
-    ld_numeric_errors: list[str],
+    ld_numeric_errors: list[ValidationIssue],
 ) -> bool:
     """Convert numeric fields and report conversion or range failures for a row."""
     d_converted_values: dict[str, int | float] = {}
@@ -201,18 +231,22 @@ def convert_and_validate_numeric_fields(
             n_value = f_converter(s_raw_value)
         except (TypeError, ValueError, OverflowError):
             s_expected_type = "integer" if f_converter is int else "number"
-            ld_numeric_errors.append(
-                f"{s_source_name} row {i_row_number}: field {s_field} "
-                f"cannot be converted to an {s_expected_type}: {s_raw_value!r}."
-            )
+            ld_numeric_errors.append(create_validation_issue(
+                s_source_name,
+                i_row_number,
+                s_field,
+                f"Cannot convert {s_raw_value!r} to an {s_expected_type}.",
+            ))
             b_row_is_valid = False
             continue
 
         if isinstance(n_value, float) and not math.isfinite(n_value):
-            ld_numeric_errors.append(
-                f"{s_source_name} row {i_row_number}: field {s_field} "
-                f"must be a finite number, got {s_raw_value!r}."
-            )
+            ld_numeric_errors.append(create_validation_issue(
+                s_source_name,
+                i_row_number,
+                s_field,
+                f"Expected a finite number; got {s_raw_value!r}.",
+            ))
             b_row_is_valid = False
             continue
 
@@ -226,11 +260,12 @@ def convert_and_validate_numeric_fields(
                 s_allowed_range = f"at least {n_minimum}"
             else:
                 s_allowed_range = f"between {n_minimum} and {n_maximum}"
-            ld_numeric_errors.append(
-                f"{s_source_name} row {i_row_number}: field {s_field} "
-                f"value {n_value} is outside the allowed range "
-                f"({s_allowed_range})."
-            )
+            ld_numeric_errors.append(create_validation_issue(
+                s_source_name,
+                i_row_number,
+                s_field,
+                f"Value {n_value} is outside the allowed range ({s_allowed_range}).",
+            ))
             b_row_is_valid = False
             continue
 

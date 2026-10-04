@@ -16,19 +16,19 @@ def main() -> None:
     ld_valid_sessions_rows = pe.read_csv(DATA_DIRECTORY / "fitness_sessions.csv")
     ld_invalid_sessions_rows = pe.read_csv(DATA_DIRECTORY / "fitness_sessions_invalid.csv")
 
-    ld_validation_errors = []
-    ld_validation_errors.extend(
+    ld_rejected_records = []
+    ld_rejected_records.extend(
         cv.validate_csv_rows("participants.csv", ld_profiles_rows, cv.PROFILE_FIELDS)
     )
-    ld_validation_errors.extend(
+    ld_rejected_records.extend(
         cv.validate_profile_ids("participants.csv", ld_profiles_rows)
     )
-    ld_validation_errors.extend(
+    ld_rejected_records.extend(
         cv.validate_csv_rows(
             "fitness_sessions.csv", ld_valid_sessions_rows, cv.SESSION_FIELDS
         )
     )
-    ld_validation_errors.extend(
+    ld_rejected_records.extend(
         cv.validate_csv_rows(
             "fitness_sessions_invalid.csv",
             ld_invalid_sessions_rows,
@@ -49,7 +49,7 @@ def main() -> None:
             i_row_number,
             ld_profile_row,
             cv.PROFILE_NUMERIC_RULES,
-            ld_validation_errors,
+            ld_rejected_records,
         )
         if b_shape_is_valid and b_id_is_valid and b_values_are_valid:
             ld_accepted_profile_rows.append(ld_profile_row)
@@ -65,10 +65,10 @@ def main() -> None:
         ("fitness_sessions.csv", ld_valid_sessions_rows),
         ("fitness_sessions_invalid.csv", ld_invalid_sessions_rows),
     ):
-        ld_validation_errors.extend(
+        ld_rejected_records.extend(
             cv.validate_session_ids(s_source_name, ld_session_rows)
         )
-        ld_validation_errors.extend(
+        ld_rejected_records.extend(
             cv.validate_session_participants(
                 s_source_name, ld_session_rows, ds_known_participant_ids
             )
@@ -91,7 +91,7 @@ def main() -> None:
                 i_row_number,
                 ld_session_row,
                 cv.SESSION_NUMERIC_RULES,
-                ld_validation_errors,
+                ld_rejected_records,
             )
             if (
                 s_source_name == "fitness_sessions.csv"
@@ -128,6 +128,16 @@ def main() -> None:
         for d_session in d_sessions_by_id.values()
     )
 
+    if ld_rejected_records:
+        print("Rejected records:")
+        for d_rejected_record in ld_rejected_records:
+            print(
+                f"  {d_rejected_record['source_file']} row "
+                f"{d_rejected_record['row_number']}, "
+                f"field {d_rejected_record['field']}: "
+                f"{d_rejected_record['reason']}"
+            )
+
     print(
         f"Read {len(ld_profiles_rows)} participant profiles, "
         f"accepted {len(ld_accepted_valid_session_rows)} valid observations "
@@ -136,7 +146,7 @@ def main() -> None:
         f"{SIGNAL_QUALITY_THRESHOLD} signal-quality threshold are excluded "
         "from analysis. Read "
         f"{len(ld_invalid_sessions_rows)} intentionally invalid session rows "
-        f"({len(ld_validation_errors)} validation findings)."
+        f"({len(ld_rejected_records)} rejection records)."
     )
 
 
