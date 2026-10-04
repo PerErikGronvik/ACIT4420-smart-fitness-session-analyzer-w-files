@@ -3,6 +3,133 @@ Report generation functions for displaying session analysis results.
 """
 
 
+import csv
+from pathlib import Path
+
+
+ANALYSIS_SUMMARY_FIELDS = [
+    "session_id",
+    "participant_id",
+    "participant",
+    "resting_heart_rate",
+    "baseline_skin_response",
+    "baseline_temperature",
+    "classification",
+    "confidence",
+    "reason",
+    "total_observations",
+    "usable_observations",
+    "usable_percent",
+    "avg_heart_rate",
+    "min_heart_rate",
+    "max_heart_rate",
+    "avg_activity_level",
+    "avg_skin_response",
+    "avg_temperature",
+    "heart_rate_change",
+    "skin_response_change",
+    "temperature_change",
+]
+
+
+def write_analysis_summary_csv(
+    session_results: list[dict], output_directory: Path
+) -> Path:
+    """Create the output directory and write one summary row per session."""
+    output_directory.mkdir(parents=True, exist_ok=True)
+    summary_path = output_directory / "analysis_summary.csv"
+
+    with summary_path.open("w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=ANALYSIS_SUMMARY_FIELDS)
+        writer.writeheader()
+        writer.writerows(session_results)
+
+    return summary_path
+
+
+def write_analysis_report_txt(
+    session_results: list[dict], output_directory: Path
+) -> Path:
+    """Write a readable explanation of each session's analysis results."""
+    output_directory.mkdir(parents=True, exist_ok=True)
+    report_path = output_directory / "analysis_report.txt"
+    lines = [
+        "FITNESS SESSION ANALYSIS REPORT",
+        "=" * 32,
+        "Only observations meeting the signal-quality threshold are used for these statistics.",
+        "A positive baseline difference means the session average was above the participant's reference value.",
+        "Confidence is the proportion of recorded observations that were usable; insufficient-data classifications have zero confidence.",
+        "",
+    ]
+
+    for index, report in enumerate(session_results, start=1):
+        lines.extend([
+            f"Result {index}: Session {report['session_id']}",
+            "-" * 32,
+            f"Participant: {report['participant']} ({report['participant_id']})",
+            f"Classification: {report['classification']} ({report['confidence'] * 100:.0f}% confidence)",
+            f"Why: {report['reason']}",
+            f"Usable observations: {report['usable_observations']} of {report['total_observations']} ({report['usable_percent']:.1f}%).",
+        ])
+
+        if report["usable_observations"]:
+            lines.extend([
+                f"Heart rate: average {report['avg_heart_rate']:.1f} bpm, ranging from {report['min_heart_rate']} to {report['max_heart_rate']} bpm.",
+                f"Compared with the resting baseline of {report['resting_heart_rate']} bpm, average heart rate changed by {report['heart_rate_change']:+.1f} bpm.",
+                f"Average activity level: {report['avg_activity_level']:.2f} on a 0-to-1 scale.",
+            ])
+            if report["skin_response_change"] is not None:
+                lines.append(
+                    f"Skin response: average {report['avg_skin_response']:.2f}, "
+                    f"compared with baseline {report['baseline_skin_response']:.2f} "
+                    f"(change {report['skin_response_change']:+.2f})."
+                )
+            else:
+                lines.append("Skin response: baseline comparison is unavailable.")
+            if report["temperature_change"] is not None:
+                lines.append(
+                    f"Temperature: average {report['avg_temperature']:.2f} C, "
+                    f"compared with baseline {report['baseline_temperature']:.2f} C "
+                    f"(change {report['temperature_change']:+.2f} C)."
+                )
+            else:
+                lines.append("Temperature: baseline comparison is unavailable.")
+        else:
+            lines.append(
+                "No usable observations were available, so session averages and baseline comparisons could not be calculated."
+            )
+        lines.append("")
+
+    if not session_results:
+        lines.append("No sessions were available to analyze.")
+
+    report_path.write_text("\n".join(lines), encoding="utf-8")
+    return report_path
+
+
+def write_rejected_records_txt(
+    rejected_records: list[dict], output_directory: Path
+) -> Path:
+    """Write each rejected row's source, row number, field, and reason."""
+    output_directory.mkdir(parents=True, exist_ok=True)
+    rejected_path = output_directory / "rejected_records.txt"
+    lines = ["REJECTED CSV RECORDS", "=" * 20, ""]
+
+    if rejected_records:
+        for rejected_record in rejected_records:
+            lines.append(
+                f"{rejected_record['source_file']} row "
+                f"{rejected_record['row_number']}, "
+                f"field {rejected_record['field']}: "
+                f"{rejected_record['reason']}"
+            )
+    else:
+        lines.append("No rejected records.")
+
+    rejected_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return rejected_path
+
+
 def generate_session_report(session, classification_result: dict) -> dict:
     """
     Build a structured report dictionary from a session and its classification.

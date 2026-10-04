@@ -7,29 +7,41 @@ from src import csv_validation as cv
 from src import perdas as pe
 from src.classifier import SessionClassifier
 from src.participant import Participant
-from src.report import generate_session_report, generate_summary_table, print_session_report
+from src.report import (generate_session_report, generate_summary_table, print_session_report, write_analysis_report_txt, write_analysis_summary_csv, write_rejected_records_txt,)
 from src.session import Session
-from src.validation import (
-    MINIMUM_USABLE_OBSERVATIONS,
-    SIGNAL_QUALITY_THRESHOLD,
-    is_good_signal_quality,
-)
+from src.validation import MINIMUM_USABLE_OBSERVATIONS, SIGNAL_QUALITY_THRESHOLD, is_good_signal_quality
 
 
 DATA_DIRECTORY = Path(__file__).resolve().parent / "data"
+OUTPUT_DIRECTORY = Path(__file__).resolve().parent / "output"
 
 
 def main() -> None:
     """Load the CSV data, validate it, group observations, and summarize."""
+    OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
     try:
         ld_profiles_rows = pe.read_csv(DATA_DIRECTORY / "participants.csv")
+    except (FileNotFoundError, PermissionError, csv.Error) as error:
+        print(f"Could not load required participant profiles: {error}")
+        return
+
+    try:
         ld_valid_sessions_rows = pe.read_csv(DATA_DIRECTORY / "fitness_sessions.csv")
+    except (FileNotFoundError, PermissionError, csv.Error) as error:
+        print(f"Could not load fitness_sessions.csv; continuing without it: {error}")
+        ld_valid_sessions_rows = []
+
+    try:
         ld_invalid_sessions_rows = pe.read_csv(
             DATA_DIRECTORY / "fitness_sessions_invalid.csv"
         )
     except (FileNotFoundError, PermissionError, csv.Error) as error:
-        print(f"Could not load required CSV input: {error}")
-        return
+        print(
+            "Could not load fitness_sessions_invalid.csv; "
+            f"continuing without it: {error}"
+        )
+        ld_invalid_sessions_rows = []
 
     ld_rejected_records = []
     ld_rejected_records.extend(
@@ -173,6 +185,21 @@ def main() -> None:
 
     print("Session comparison summary:")
     print(generate_summary_table(ld_analysis_results))
+    summary_path = write_analysis_summary_csv(
+        ld_analysis_results, OUTPUT_DIRECTORY
+    )
+
+    print(f"Wrote analysis summary: {summary_path}")
+    report_path = write_analysis_report_txt(
+        ld_analysis_results, OUTPUT_DIRECTORY
+    )
+    
+    print(f"Wrote readable analysis report: {report_path}")
+    rejected_path = write_rejected_records_txt(
+        ld_rejected_records, OUTPUT_DIRECTORY
+    )
+    
+    print(f"Wrote rejected-record details: {rejected_path}")
 
     i_low_quality_observations = sum(
         len(d_session.observations)

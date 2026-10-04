@@ -12,3 +12,6 @@ env/
 # IDE / Editor files
 .vscode/
 .idea/
+
+# Generated analysis reports
+/output/
