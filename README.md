@@ -30,6 +30,14 @@ python3 main.py --profiles data/participants.csv --sessions data/fitness_session
 available as `--output-dir`. The completion summary reports accepted rows,
 rejected rows, and the report files created.
 
+## Tests
+
+Run the CSV validation and reused domain-analysis tests from the repository root:
+
+```bash
+python3 -m unittest test_csv_validation test_domain_analysis
+```
+
 ## Structure
 
 ```text
